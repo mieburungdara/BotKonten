@@ -1,0 +1,1007 @@
+openapi: 3.0.3
+info:
+  title: BotKonten API
+  description: API for Telegram Mini Webapp for selling media content
+  version: 1.0.0
+  contact:
+    name: BotKonten Support
+  license:
+    name: MIT
+
+servers:
+  - url: https://api.botkonten.com
+    description: Production server
+  - url: http://localhost:8000
+    description: Development server
+
+security:
+  - bearerAuth: []
+
+paths:
+  /api/register:
+    post:
+      summary: Register a new anonymous user
+      operationId: registerUser
+      description: |
+        Creates a new anonymous user with a unique anonymous_id (UUID).
+        No payload required - the server generates anonymous_id automatically.
+        Returns a JWT token for subsequent authenticated requests.
+      tags:
+        - Authentication
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              description: Empty request body - anonymous_id is auto-generated
+            example: {}
+      responses:
+        '201':
+          description: User registered successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserRegistrationResponse'
+              example:
+                anonymous_id: "550e8400-e29b-41d4-a716-446655440000"
+                token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                created_at: "2024-01-15T10:30:00Z"
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/login:
+    post:
+      summary: Login with anonymous ID
+      operationId: loginUser
+      description: |
+        Authenticates an existing user with their anonymous_id.
+        Returns a JWT token for subsequent authenticated requests.
+      tags:
+        - Authentication
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/user/profile:
+    get:
+      summary: Get user profile
+      operationId: getUserProfile
+      description: Retrieves the current user's profile information including statistics.
+      tags:
+        - User
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Profile retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfile'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/media:
+    get:
+      summary: List published media
+      operationId: listMedia
+      description: Retrieves a list of published media with optional filtering and pagination.
+      tags:
+        - Media
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: search
+          in: query
+          schema:
+            type: string
+        - name: category
+          in: query
+          schema:
+            type: string
+        - name: bot_id
+          in: query
+          schema:
+            type: integer
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: per_page
+          in: query
+          schema:
+            type: integer
+            default: 20
+            maximum: 100
+      responses:
+        '200':
+          description: Media list retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MediaListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    post:
+      summary: Publish media from draft
+      operationId: publishMedia
+      description: Publishes a draft as a published media item with custom title, description, and price.
+      tags:
+        - Media
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PublishMediaRequest'
+      responses:
+        '201':
+          description: Media published
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Media'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/media/{id}:
+    get:
+      summary: Get media details
+      operationId: getMedia
+      description: Retrieves detailed information about a specific published media including reviews.
+      tags:
+        - Media
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Media details retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MediaDetail'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/drafts:
+    get:
+      summary: List user drafts
+      operationId: listDrafts
+      description: Retrieves a list of user's draft media items.
+      tags:
+        - Drafts
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: per_page
+          in: query
+          schema:
+            type: integer
+            default: 20
+            maximum: 100
+      responses:
+        '200':
+          description: Drafts list retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DraftListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/drafts/publish:
+    post:
+      summary: Publish draft
+      operationId: publishDraft
+      description: Publishes a draft as a published media item with default settings.
+      tags:
+        - Drafts
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PublishDraftRequest'
+      responses:
+        '201':
+          description: Draft published
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Media'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/drafts/{id}:
+    delete:
+      summary: Delete draft
+      operationId: deleteDraft
+      description: Deletes a draft media item. Only the owner can delete their drafts.
+      tags:
+        - Drafts
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '204':
+          description: Draft deleted
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/albums:
+    post:
+      summary: Create album
+      operationId: createAlbum
+      description: Creates a new album from published media items (max 10 media per album).
+      tags:
+        - Albums
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateAlbumRequest'
+      responses:
+        '201':
+          description: Album created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Album'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/albums/{id}:
+    get:
+      summary: Get album details
+      operationId: getAlbum
+      description: Retrieves detailed information about a specific album including media and reviews.
+      tags:
+        - Albums
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Album details retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AlbumDetail'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/bots:
+    get:
+      summary: List available bots
+      operationId: listBots
+      description: Retrieves a list of available Telegram bots.
+      tags:
+        - Bots
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Bots list retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BotListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/user/select-bot:
+    post:
+      summary: Select bot for user
+      operationId: selectBot
+      description: Selects a bot for the current user (sets active bot for uploads).
+      tags:
+        - User
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SelectBotRequest'
+      responses:
+        '200':
+          description: Bot selected
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SelectBotResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /webhook/bot/{bot_id}:
+    post:
+      summary: Handle Telegram bot webhook
+      operationId: handleWebhook
+      parameters:
+        - name: bot_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TelegramUpdate'
+      responses:
+        '200':
+          description: Update handled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WebhookResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    UserRegistrationResponse:
+      type: object
+      description: Response after successful user registration
+      properties:
+        anonymous_id:
+          type: string
+          format: uuid
+          description: Generated UUID for the user
+        token:
+          type: string
+          description: JWT token for authentication
+        created_at:
+          type: string
+          format: date-time
+          description: Account creation timestamp
+      example:
+        anonymous_id: "550e8400-e29b-41d4-a716-446655440000"
+        token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI1NTBlODQwMC1lMjliLTQxZDQtYTcxNi00NDY2NTU0NDAwMDAifQ.xYz123"
+        created_at: "2024-01-15T10:30:00Z"
+
+    LoginRequest:
+      type: object
+      required:
+        - anonymous_id
+      description: Login request payload
+      properties:
+        anonymous_id:
+          type: string
+          format: uuid
+          description: UUID of the user to authenticate
+          example: "550e8400-e29b-41d4-a716-446655440000"
+
+    LoginResponse:
+      type: object
+      description: Response after successful login
+      properties:
+        token:
+          type: string
+          description: JWT token for session
+        user:
+          $ref: '#/components/schemas/User'
+      example:
+        token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI1NTBlODQwMC1lMjliLTQxZDQtYTcxNi00NDY2NTU0NDAwMDAifQ.xYz123"
+        user:
+          anonymous_id: "550e8400-e29b-41d4-a716-446655440000"
+          created_at: "2024-01-15T10:30:00Z"
+          updated_at: "2024-01-15T10:30:00Z"
+
+    User:
+      type: object
+      description: User entity
+      properties:
+        anonymous_id:
+          type: string
+          format: uuid
+          description: User's unique anonymous ID
+        created_at:
+          type: string
+          format: date-time
+          description: Account creation timestamp
+        updated_at:
+          type: string
+          format: date-time
+          description: Last update timestamp
+
+    UserProfile:
+      type: object
+      properties:
+        anonymous_id:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        total_media:
+          type: integer
+        total_drafts:
+          type: integer
+
+    MediaListResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Media'
+        pagination:
+          $ref: '#/components/schemas/Pagination'
+
+    Media:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Unique media identifier
+        title:
+          type: string
+          minLength: 1
+          maxLength: 255
+          description: Media title
+        description:
+          type: string
+          maxLength: 1000
+          description: Media description
+        price:
+          type: number
+          minimum: 0
+          description: Price in currency
+        file_url:
+          type: string
+          format: uri
+          description: URL to the media file
+        file_type:
+          type: string
+          enum: [photo, video, audio, document]
+          description: Type of media file
+        bot_id:
+          type: integer
+          description: Associated bot ID
+        bot_name:
+          type: string
+          description: Associated bot name
+        anonymous_user_id:
+          type: string
+          format: uuid
+          description: Owner user anonymous ID
+        rating:
+          type: number
+          minimum: 0
+          maximum: 5
+          description: Average rating (0-5)
+        review_count:
+          type: integer
+          minimum: 0
+          description: Number of reviews
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    MediaDetail:
+      allOf:
+        - $ref: '#/components/schemas/Media'
+        - type: object
+          properties:
+            reviews:
+              type: array
+              items:
+                $ref: '#/components/schemas/Review'
+            album_id:
+              type: integer
+
+    PublishMediaRequest:
+      type: object
+      required:
+        - draft_id
+        - price
+      description: Request to publish a draft as media
+      properties:
+        draft_id:
+          type: integer
+          description: ID of the draft to publish
+          example: 123
+        title:
+          type: string
+          minLength: 1
+          maxLength: 255
+          description: Media title (overrides draft title)
+          example: "My New Video"
+        description:
+          type: string
+          maxLength: 1000
+          description: Media description (overrides draft description)
+          example: "An amazing video content"
+        price:
+          type: number
+          minimum: 0
+          description: Price in currency
+          example: 4.99
+
+    DraftListResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Draft'
+        pagination:
+          $ref: '#/components/schemas/Pagination'
+
+    Draft:
+      type: object
+      properties:
+        id:
+          type: integer
+        file_url:
+          type: string
+        file_type:
+          type: string
+        bot_id:
+          type: integer
+        bot_name:
+          type: string
+        anonymous_user_id:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+
+    PublishDraftRequest:
+      type: object
+      required:
+        - draft_id
+        - price
+      description: Request to publish a draft with default settings
+      properties:
+        draft_id:
+          type: integer
+          description: ID of the draft to publish
+          example: 123
+        price:
+          type: number
+          minimum: 0
+          description: Price in currency
+          example: 2.99
+
+    CreateAlbumRequest:
+      type: object
+      required:
+        - title
+        - media_ids
+        - price
+      description: Request to create a new album from published media
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 255
+          description: Album title
+          example: "Summer Collection 2024"
+        description:
+          type: string
+          maxLength: 1000
+          description: Album description
+          example: "A collection of summer vibes"
+        media_ids:
+          type: array
+          items:
+            type: integer
+          minItems: 1
+          maxItems: 10
+          description: Array of media IDs to include in album
+          example: [1, 2, 3, 4, 5]
+        price:
+          type: number
+          minimum: 0
+          description: Total price for the album
+          example: 9.99
+
+    Album:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        description:
+          type: string
+        price:
+          type: number
+        media_count:
+          type: integer
+        media:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: integer
+              file_url:
+                type: string
+              file_type:
+                type: string
+        bot_id:
+          type: integer
+        anonymous_user_id:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+
+    AlbumDetail:
+      allOf:
+        - $ref: '#/components/schemas/Album'
+        - type: object
+          properties:
+            media:
+              type: array
+              items:
+                allOf:
+                  - $ref: '#/components/schemas/Media'
+            rating:
+              type: number
+            reviews:
+              type: array
+              items:
+                $ref: '#/components/schemas/Review'
+            updated_at:
+              type: string
+              format: date-time
+
+    BotListResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Bot'
+
+    Bot:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        username:
+          type: string
+        description:
+          type: string
+        is_active:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+
+    SelectBotRequest:
+      type: object
+      required:
+        - bot_id
+      properties:
+        bot_id:
+          type: integer
+
+    SelectBotResponse:
+      type: object
+      properties:
+        selected_bot:
+          $ref: '#/components/schemas/Bot'
+        message:
+          type: string
+
+    TelegramUpdate:
+      type: object
+      properties:
+        update_id:
+          type: integer
+        message:
+          type: object
+          properties:
+            message_id:
+              type: integer
+            from:
+              type: object
+              properties:
+                id:
+                  type: integer
+                is_bot:
+                  type: boolean
+                first_name:
+                  type: string
+                username:
+                  type: string
+            chat:
+              type: object
+              properties:
+                id:
+                  type: integer
+                type:
+                  type: string
+            date:
+              type: integer
+            text:
+              type: string
+            photo:
+              type: array
+              items:
+                type: object
+            video:
+              type: object
+            audio:
+              type: object
+            document:
+              type: object
+
+    WebhookResponse:
+      type: object
+      properties:
+        ok:
+          type: boolean
+        description:
+          type: string
+
+    Pagination:
+      type: object
+      properties:
+        current_page:
+          type: integer
+        per_page:
+          type: integer
+        total:
+          type: integer
+        last_page:
+          type: integer
+
+    Review:
+      type: object
+      properties:
+        user_anonymous_id:
+          type: string
+        rating:
+          type: integer
+          minimum: 1
+          maximum: 5
+        comment:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+        details:
+          type: object
+
+  responses:
+    BadRequest:
+      description: Bad Request - Invalid request data
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          examples:
+            missing_field:
+              value:
+                error: "BAD_REQUEST"
+                message: "Missing required field: draft_id"
+                details:
+                  field: "draft_id"
+                  issue: "Field is required but was not provided"
+            invalid_format:
+              value:
+                error: "BAD_REQUEST"
+                message: "Invalid format for field: anonymous_id"
+                details:
+                  field: "anonymous_id"
+                  issue: "Must be a valid UUID"
+
+    Unauthorized:
+      description: Unauthorized - Invalid or missing authentication token
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          examples:
+            missing_token:
+              value:
+                error: "UNAUTHORIZED"
+                message: "Authentication token is required"
+                details:
+                  header: "Authorization"
+                  expected: "Bearer <token>"
+            invalid_token:
+              value:
+                error: "UNAUTHORIZED"
+                message: "Invalid or expired token"
+
+    Forbidden:
+      description: Forbidden - User does not have permission to access the resource
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: "FORBIDDEN"
+            message: "You do not have permission to access this resource"
+
+    NotFound:
+      description: Not Found - The requested resource does not exist
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          examples:
+            user_not_found:
+              value:
+                error: "NOT_FOUND"
+                message: "User not found"
+            media_not_found:
+              value:
+                error: "NOT_FOUND"
+                message: "Media not found"
+
+    UnprocessableEntity:
+      description: Unprocessable Entity - Validation failed for the provided data
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          examples:
+            validation_error:
+              value:
+                error: "VALIDATION_ERROR"
+                message: "Validation failed"
+                details:
+                  errors:
+                    - field: "price"
+                      message: "Price must be greater than 0"
+                    - field: "title"
+                      message: "Title cannot be empty"
+
+    InternalServerError:
+      description: Internal Server Error - Unexpected server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: "INTERNAL_SERVER_ERROR"
+            message: "An unexpected error occurred"
